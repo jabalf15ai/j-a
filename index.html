@@ -598,8 +598,8 @@ footer{padding:40px 24px;border-top:1px solid rgba(255,255,255,.03);text-align:c
      SCRIPTS
 ══════════════════════════════════════════════════════════ -->
 <script>
-// ─── API KEY ──────────────────────────────────────────────
-const API_KEY = "AIzaSyDKtuyOdQWqrAQFIIIXaDIIs_evMJeAsq0";
+// ─── API ENDPOINT (VERCEL FUNCTION) ──────────────────────
+const API_ENDPOINT = '/api/gemini';
 
 // ─── COSMOS CANVAS ───────────────────────────────────────
 (function initCosmos(){
@@ -835,29 +835,19 @@ const TOOL_SYS={
 };
 
 async function callAI(text, sys, imageBase64=null, mimeType=null){
-  if(!API_KEY||API_KEY==='ضع_مفتاحك_هنا')
-    return '⚠️ يرجى إضافة مفتاح Gemini API في متغير API_KEY بالكود.';
-
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
-  let parts=[{text}];
-  if(imageBase64&&mimeType) parts.push({inlineData:{mimeType,data:imageBase64}});
-
   try{
-    const res=await fetch(url,{
+    const res=await fetch(API_ENDPOINT,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts}],
-        systemInstruction:{parts:[{text:sys}]},
-        generationConfig:{temperature:.7}
-      })
+      body:JSON.stringify({text, sys, imageBase64, mimeType})
     });
-    if(!res.ok) throw new Error(res.status);
     const data=await res.json();
-    // ✅ FIX #1: correct JSON path
-    return data.candidates[0].content.parts[0].text;
+    if(!res.ok){
+      throw new Error(data?.error || res.statusText || 'API error');
+    }
+    return data?.text || '⚠️ لم يتم استلام رد من النموذج.';
   }catch(err){
-    return '⚠️ فشل الاتصال بخوادم جوجل. تأكد من صحة المفتاح. ['+err.message+']';
+    return '⚠️ فشل الاتصال بالخادم. تأكد من إعداد متغير البيئة GEMINI_API_KEY في Vercel. ['+err.message+']';
   }
 }
 
@@ -908,7 +898,7 @@ async function runTool(type){
 window.toggleChat=function(){
   document.getElementById('chatW').classList.toggle('open');
 };
-=`
+
 async function sendChat(){
   const inp=document.getElementById('chatIn');
   const q=inp.value.trim(); if(!q)return; inp.value='';
